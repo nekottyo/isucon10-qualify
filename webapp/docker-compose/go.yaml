@@ -33,6 +33,8 @@ services:
       MYSQL_PASS: isucon
       MYSQL_HOST: mysql
       SERVER_PORT: 1323
+      DD_AGENT_HOST: datadog-agent
+      DD_TRACE_AGENT_PORT: "8126"
     ports:
       - "1323:1323"
     depends_on:

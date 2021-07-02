@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,11 +14,19 @@ import (
 	"strconv"
 	"strings"
 
+	// "gopkg.in/DataDog/dd-trace-go.v1/contrib/net/http"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/labstack/gommon/log"
+
+	echotrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/labstack/echo"
+
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 )
 
 const Limit = 20
@@ -240,13 +249,37 @@ func init() {
 
 func main() {
 	// Echo instance
+
+	tracer.Start()
+	defer tracer.Stop()
+
+	if err := profiler.Start(
+		profiler.WithProfileTypes(
+			profiler.CPUProfile,
+			profiler.HeapProfile,
+
+			// The profiles below are disabled by
+			// default to keep overhead low, but
+			// can be enabled as needed.
+			profiler.BlockProfile,
+			profiler.MutexProfile,
+			profiler.GoroutineProfile,
+		),
+	); err != nil {
+		log.Fatal(err)
+	}
+	defer profiler.Stop()
+
 	e := echo.New()
 	e.Debug = true
 	e.Logger.SetLevel(log.DEBUG)
 
 	// Middleware
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+
+	e.Use(echotrace.Middleware(echotrace.WithServiceName("isu")))
 
 	// Initialize
 	e.POST("/initialize", initialize)
