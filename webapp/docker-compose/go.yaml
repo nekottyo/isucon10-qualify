@@ -33,12 +33,14 @@ services:
       MYSQL_PASS: isucon
       MYSQL_HOST: mysql
       SERVER_PORT: 1323
-      DD_AGENT_HOST: datadog-agent
+      DD_AGENT_HOST: datadog
       DD_TRACE_AGENT_PORT: "8126"
     ports:
       - "1323:1323"
     depends_on:
       - mysql
+    links:
+      - datadog
     command: /go/src/isuumo/isuumo
 
   frontend:
@@ -49,10 +51,10 @@ services:
   nginx:
     build: ../nginx
     volumes:
-        - ../../provisioning/ansible/roles/web-bootstrap/files/nginx.conf.template:/etc/nginx/nginx.conf.template
-        - ../logs/nginx:/var/log/nginx
-        - ../nginx/conf.d:/etc/nginx/conf.d
-        - ../nginx/out:/www/data
+      - ../../provisioning/ansible/roles/web-bootstrap/files/nginx.conf.template:/etc/nginx/nginx.conf.template
+      - ../logs/nginx:/var/log/nginx
+      - ../nginx/conf.d:/etc/nginx/conf.d
+      - ../nginx/out:/www/data
     ports:
       - "8080:80"
     entrypoint:
@@ -64,7 +66,9 @@ services:
     environment:
       API_SERVER: api-server
     depends_on:
-      - frontend
+      - api-server
+    links:
+      - datadog
     command: >
       /bin/sh -c
       "envsubst '
@@ -72,3 +76,13 @@ services:
       '< /etc/nginx/nginx.conf.template
       > /etc/nginx/nginx.conf
       && nginx -g 'daemon off;'"
+
+  datadog:
+    image: datadog/agent:latest
+    environment:
+      - DD_API_KEY=11111111111111111111111111111111
+      - DD_SITE=datadoghq.com
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
